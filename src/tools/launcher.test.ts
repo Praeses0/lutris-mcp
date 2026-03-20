@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { setupTestDb, seedData, teardownTestDb, getTestDb } from "../__fixtures__/seed.js";
-import { mkdtempSync, writeFileSync, mkdirSync, rmSync } from "fs";
+import { mkdtempSync, writeFileSync, mkdirSync, rmSync, readFileSync } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
 
@@ -108,7 +108,7 @@ describe("launcher tools", () => {
         writeFileSync(setupPath, "fake-setup");
       });
 
-      it("installs from local setup_exe", async () => {
+      it("installs from local setup_exe without exe (adds note)", async () => {
         const result = await tools.get("install_game")!({
           setup_exe: setupPath,
           name: "My Test Game",
@@ -118,11 +118,54 @@ describe("launcher tools", () => {
         expect(data.message).toContain("My Test Game");
         expect(data.pid).toBe(12345);
         expect(data.installer_yaml).toBeDefined();
+        expect(data.note).toContain("write_game_config");
         expect(mockSpawn).toHaveBeenCalledWith(
           "lutris",
           ["-i", expect.stringContaining("installer.yml")],
           expect.objectContaining({ detached: true })
         );
+
+        // Verify YAML does not contain a hardcoded exe
+        const yaml = readFileSync(data.installer_yaml, "utf-8");
+        expect(yaml).not.toContain("exe:");
+        expect(yaml).toContain("prefix: $GAMEDIR");
+      });
+
+      it("includes exe in YAML when provided", async () => {
+        const result = await tools.get("install_game")!({
+          setup_exe: setupPath,
+          name: "My Test Game",
+          runner: "wine",
+          exe: "drive_c/Program Files/MyGame/game.exe",
+        });
+        const data = parseResult(result);
+        expect(data.note).toBeUndefined();
+
+        const yaml = readFileSync(data.installer_yaml, "utf-8");
+        expect(yaml).toContain("exe: $GAMEDIR/drive_c/Program Files/MyGame/game.exe");
+      });
+
+      it("uses custom install_dir in wine args", async () => {
+        const result = await tools.get("install_game")!({
+          setup_exe: setupPath,
+          name: "My Test Game",
+          runner: "wine",
+          install_dir: "C:\\\\Program Files\\\\MyGame",
+        });
+        const data = parseResult(result);
+        const yaml = readFileSync(data.installer_yaml, "utf-8");
+        expect(yaml).toContain("/DIR=C:\\\\Program Files\\\\MyGame");
+      });
+
+      it("uses default install_dir C:\\\\game when not specified", async () => {
+        const result = await tools.get("install_game")!({
+          setup_exe: setupPath,
+          name: "My Test Game",
+          runner: "wine",
+        });
+        const data = parseResult(result);
+        const yaml = readFileSync(data.installer_yaml, "utf-8");
+        expect(yaml).toContain("/DIR=C:\\\\game");
       });
 
       it("derives game name from directory when name omitted", async () => {

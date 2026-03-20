@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { setupTestDb, seedData, teardownTestDb, getTestDb } from "../__fixtures__/seed.js";
-import { mkdtempSync, writeFileSync, rmSync } from "fs";
+import { mkdtempSync, writeFileSync, readFileSync, readdirSync, rmSync, existsSync } from "fs";
 import { tmpdir } from "os";
 import path from "path";
 
@@ -10,6 +10,7 @@ vi.mock("../db/connection.js", () => ({
 }));
 
 import { registerConfigTools } from "./config.js";
+import { getGameById } from "../db/queries.js";
 
 function captureTools() {
   const tools = new Map<string, Function>();
@@ -95,9 +96,64 @@ describe("config tools", () => {
       expect(readData.config.game.exe).toBe("/bin/hl2-updated");
     });
 
-    it("errors when no configpath", async () => {
-      const result = await tools.get("write_game_config")!({ id: 3, config: { foo: "bar" } });
-      expect(result.isError).toBe(true);
+    it("creates new config when game has no configpath", async () => {
+      // Game 3 (Celeste) has no configpath
+      const result = await tools.get("write_game_config")!({
+        id: 3,
+        config: { game: { exe: "/bin/celeste" }, system: { reset_desktop: 1 } },
+      });
+      expect(result.isError).toBeUndefined();
+      const data = parseResult(result);
+      expect(data.message).toContain("Celeste");
+      expect(data.config.game.exe).toBe("/bin/celeste");
+      expect(data.config.system.reset_desktop).toBe(1);
+      expect(data.configpath).toMatch(/^celeste-\d+$/);
+
+      // Verify the DB was updated with the new configpath
+      const game = getGameById(3);
+      expect(game!.configpath).toBe(data.configpath);
+
+      // Verify the YAML file was actually written
+      const filePath = path.join(tempDir, `${data.configpath}.yml`);
+      expect(existsSync(filePath)).toBe(true);
+    });
+
+    it("created config can be read back via read_game_config", async () => {
+      // Create a new config for Celeste (id 3, no configpath)
+      await tools.get("write_game_config")!({
+        id: 3,
+        config: { game: { exe: "/bin/celeste" } },
+      });
+
+      // Now read it back
+      const readResult = await tools.get("read_game_config")!({ id: 3 });
+      expect(readResult.isError).toBeUndefined();
+      const readData = parseResult(readResult);
+      expect(readData.config.game.exe).toBe("/bin/celeste");
+    });
+
+    it("writes config directly (no merge) for new config", async () => {
+      // Game 5 (Untitled Game) has no configpath
+      const result = await tools.get("write_game_config")!({
+        id: 5,
+        config: { game: { exe: "/bin/game" } },
+      });
+      const data = parseResult(result);
+      // Config should be exactly what we provided, no extra keys
+      expect(data.config).toEqual({ game: { exe: "/bin/game" } });
+    });
+
+    it("returns configpath in response for existing config", async () => {
+      writeFileSync(
+        path.join(tempDir, "half-life-2.yml"),
+        "game:\n  exe: /bin/hl2\n"
+      );
+      const result = await tools.get("write_game_config")!({
+        id: 1,
+        config: { game: { exe: "/bin/hl2-new" } },
+      });
+      const data = parseResult(result);
+      expect(data.configpath).toBe("half-life-2");
     });
   });
 });

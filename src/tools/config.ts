@@ -1,6 +1,6 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
-import { getGameById, getGameBySlug } from "../db/queries.js";
+import { getGameById, getGameBySlug, updateGame } from "../db/queries.js";
 import { readGameConfig } from "../config/reader.js";
 import { writeGameConfig } from "../config/writer.js";
 import { deepMerge } from "../util/deep-merge.js";
@@ -47,7 +47,7 @@ export function registerConfigTools(server: McpServer) {
 
   server.tool(
     "write_game_config",
-    "Update a game's YAML configuration (deep-merged with existing config)",
+    "Write or update a game's YAML configuration. If the game already has a config file, the provided config is deep-merged with it. If the game has no config file yet, a new one is created.",
     {
       id: z.coerce.number().optional().describe("Game ID"),
       slug: z.string().optional().describe("Game slug"),
@@ -63,18 +63,27 @@ export function registerConfigTools(server: McpServer) {
         if (!game) {
           return { content: [{ type: "text", text: "Game not found." }], isError: true };
         }
-        if (!game.configpath) {
-          return { content: [{ type: "text", text: `"${game.name}" has no config file.` }], isError: true };
+
+        let configpath = game.configpath;
+        let finalConfig: Record<string, unknown>;
+
+        if (configpath) {
+          // Existing configpath: deep-merge with any existing file contents
+          const existing = readGameConfig(configpath) || {};
+          finalConfig = deepMerge(existing, params.config);
+        } else {
+          // No configpath: generate one and write the config directly
+          configpath = `${game.slug}-${Date.now()}`;
+          finalConfig = params.config;
+          updateGame(game.id, { configpath });
         }
 
-        const existing = readGameConfig(game.configpath) || {};
-        const merged = deepMerge(existing, params.config);
-        writeGameConfig(game.configpath, merged);
+        writeGameConfig(configpath, finalConfig);
 
         return {
           content: [{
             type: "text",
-            text: JSON.stringify({ message: `Config updated for "${game.name}"`, config: merged }, null, 2),
+            text: JSON.stringify({ message: `Config updated for "${game.name}"`, configpath, config: finalConfig }, null, 2),
           }],
         };
       } catch (error) {

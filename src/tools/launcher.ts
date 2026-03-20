@@ -57,6 +57,8 @@ export function registerLauncherTools(server: McpServer) {
       setup_exe: z.string().optional().describe("Path to a local setup executable (e.g. setup.exe for Wine games)"),
       name: z.string().optional().describe("Game name (required with setup_exe)"),
       runner: z.enum(["wine", "linux"]).default("wine").describe("Runner for local installs"),
+      exe: z.string().optional().describe("Game executable path relative to $GAMEDIR (e.g. drive_c/Program Files/Game/game.exe). If omitted, configure later via write_game_config."),
+      install_dir: z.string().optional().describe("Wine install directory (default: C:\\\\game). Only used with wine runner."),
       args: z.string().optional().describe("Arguments to pass to the installer executable"),
     },
     async (params) => {
@@ -71,6 +73,13 @@ export function registerLauncherTools(server: McpServer) {
           const gameName = params.name || basename(dirname(setupPath));
           const gameSlug = gameName.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
 
+          const gameBlock = params.exe
+            ? [`  game:`, `    exe: $GAMEDIR/${params.exe}`, `    prefix: $GAMEDIR`]
+            : [`  game:`, `    prefix: $GAMEDIR`];
+
+          const installDir = params.install_dir || "C:\\\\game";
+          const wineArgs = [`/DIR=${installDir}`, ...(params.args ? [params.args] : [])].join(" ");
+
           const yaml = [
             `name: ${gameName}`,
             `game_slug: ${gameSlug}`,
@@ -79,9 +88,7 @@ export function registerLauncherTools(server: McpServer) {
             `runner: ${params.runner}`,
             ``,
             `script:`,
-            `  game:`,
-            `    exe: $GAMEDIR/drive_c/game/${gameName}.exe`,
-            `    prefix: $GAMEDIR`,
+            ...gameBlock,
             `  installer:`,
             params.runner === "wine"
               ? [
@@ -95,7 +102,7 @@ export function registerLauncherTools(server: McpServer) {
                   `      name: wineexec`,
                   `      executable: ${setupPath}`,
                   `      prefix: $GAMEDIR`,
-                  ...(params.args ? [`      args: ${params.args}`] : []),
+                  `      args: ${wineArgs}`,
                 ].join("\n")
               : [
                   `  - execute:`,
@@ -114,14 +121,19 @@ export function registerLauncherTools(server: McpServer) {
           });
           child.unref();
 
+          const response: Record<string, unknown> = {
+            message: `Installing "${gameName}" from local setup`,
+            pid: child.pid,
+            installer_yaml: yamlPath,
+          };
+          if (!params.exe) {
+            response.note = "No exe path was set. After install, use write_game_config to set the game executable.";
+          }
+
           return {
             content: [{
               type: "text",
-              text: JSON.stringify({
-                message: `Installing "${gameName}" from local setup`,
-                pid: child.pid,
-                installer_yaml: yamlPath,
-              }, null, 2),
+              text: JSON.stringify(response, null, 2),
             }],
           };
         }

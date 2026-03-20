@@ -79,7 +79,7 @@ describe("game tools", () => {
       expect(data).toHaveProperty("config");
       expect(data).toHaveProperty("media");
       expect(data).toHaveProperty("playtime_formatted");
-      expect(data.playtime_formatted).toBe("2h 1m");
+      expect(data.playtime_formatted).toBe("120h 30m");
     });
 
     it("returns game by slug", async () => {

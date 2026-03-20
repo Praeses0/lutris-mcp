@@ -58,7 +58,7 @@ export const SCHEMA = `
 
 export const SEED_GAMES = [
   { name: "Half-Life 2", slug: "half-life-2", runner: "steam", platform: "linux", installed: 1, playtime: 120.5, service: "steam", service_id: "220", lastplayed: 1700000000, configpath: "half-life-2", directory: "/games/half-life-2", executable: null },
-  { name: "The Witcher 3", slug: "the-witcher-3", runner: "wine", platform: "windows", installed: 1, playtime: 250.0, service: "gog", service_id: "gog-123", lastplayed: 1710000000, configpath: "the-witcher-3", directory: "/games/witcher3", executable: null },
+  { name: "The Witcher 3", slug: "the-witcher-3", runner: "wine", platform: "windows", installed: 1, playtime: 250.0, service: "gog", service_id: "gog-123", lastplayed: 1710000000, configpath: "the-witcher-3", directory: "/games/witcher3", executable: "/games/witcher3/bin/witcher3.exe" },
   { name: "Celeste", slug: "celeste", runner: "linux", platform: "linux", installed: 0, playtime: 45.0, service: null, service_id: null, lastplayed: 1690000000, configpath: null, directory: null, executable: null },
   { name: "Portal 2", slug: "portal-2", runner: "steam", platform: "linux", installed: 1, playtime: 30.0, service: "steam", service_id: "620", lastplayed: 1680000000, configpath: "portal-2", directory: "/games/portal-2", executable: null },
   { name: "Untitled Game", slug: "untitled-game", runner: "linux", platform: "linux", installed: 0, playtime: null, service: null, service_id: null, lastplayed: null, configpath: null, directory: null, executable: null },

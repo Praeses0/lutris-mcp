@@ -11,6 +11,7 @@ import { registerSystemTools } from "./tools/system.js";
 import { registerBulkTools } from "./tools/bulk.js";
 import { registerExportTools } from "./tools/export.js";
 import { registerDuplicateTools } from "./tools/duplicates.js";
+import { registerMediaTools } from "./tools/media.js";
 
 const server = new McpServer({
   name: "lutris",
@@ -27,6 +28,7 @@ registerSystemTools(server);
 registerBulkTools(server);
 registerExportTools(server);
 registerDuplicateTools(server);
+registerMediaTools(server);
 
 const transport = new StdioServerTransport();
 await server.connect(transport);
