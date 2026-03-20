@@ -57,12 +57,16 @@ export const SCHEMA = `
 `;
 
 export const SEED_GAMES = [
-  { name: "Half-Life 2", slug: "half-life-2", runner: "steam", platform: "linux", installed: 1, playtime: 120.5, service: "steam", service_id: "220", lastplayed: 1700000000, configpath: "half-life-2" },
-  { name: "The Witcher 3", slug: "the-witcher-3", runner: "wine", platform: "windows", installed: 1, playtime: 250.0, service: "gog", service_id: "gog-123", lastplayed: 1710000000, configpath: "the-witcher-3" },
-  { name: "Celeste", slug: "celeste", runner: "linux", platform: "linux", installed: 0, playtime: 45.0, service: null, service_id: null, lastplayed: 1690000000, configpath: null },
-  { name: "Portal 2", slug: "portal-2", runner: "steam", platform: "linux", installed: 1, playtime: 30.0, service: "steam", service_id: "620", lastplayed: 1680000000, configpath: "portal-2" },
-  { name: "Untitled Game", slug: "untitled-game", runner: "linux", platform: "linux", installed: 0, playtime: null, service: null, service_id: null, lastplayed: null, configpath: null },
-  { name: "Mystery Game", slug: "mystery-game", runner: null, platform: null, installed: null, playtime: null, service: null, service_id: null, lastplayed: null, configpath: null },
+  { name: "Half-Life 2", slug: "half-life-2", runner: "steam", platform: "linux", installed: 1, playtime: 120.5, service: "steam", service_id: "220", lastplayed: 1700000000, configpath: "half-life-2", directory: "/games/half-life-2", executable: null },
+  { name: "The Witcher 3", slug: "the-witcher-3", runner: "wine", platform: "windows", installed: 1, playtime: 250.0, service: "gog", service_id: "gog-123", lastplayed: 1710000000, configpath: "the-witcher-3", directory: "/games/witcher3", executable: null },
+  { name: "Celeste", slug: "celeste", runner: "linux", platform: "linux", installed: 0, playtime: 45.0, service: null, service_id: null, lastplayed: 1690000000, configpath: null, directory: null, executable: null },
+  { name: "Portal 2", slug: "portal-2", runner: "steam", platform: "linux", installed: 1, playtime: 30.0, service: "steam", service_id: "620", lastplayed: 1680000000, configpath: "portal-2", directory: "/games/portal-2", executable: null },
+  { name: "Untitled Game", slug: "untitled-game", runner: "linux", platform: "linux", installed: 0, playtime: null, service: null, service_id: null, lastplayed: null, configpath: null, directory: null, executable: null },
+  { name: "Mystery Game", slug: "mystery-game", runner: null, platform: null, installed: null, playtime: null, service: null, service_id: null, lastplayed: null, configpath: null, directory: null, executable: null },
+  // Duplicate: same directory as Half-Life 2
+  { name: "Half-Life 2 + Trainer", slug: "half-life-2-trainer", runner: "steam", platform: "linux", installed: 1, playtime: null, service: null, service_id: null, lastplayed: null, configpath: null, directory: "/games/half-life-2", executable: null },
+  // For smart search: "Final Fantasy VII" should match "ff7"
+  { name: "Final Fantasy VII", slug: "final-fantasy-vii", runner: "wine", platform: "windows", installed: 1, playtime: 60.0, service: null, service_id: null, lastplayed: null, configpath: null, directory: "/games/ff7", executable: null },
 ];
 
 export const SEED_CATEGORIES = [
@@ -95,8 +99,8 @@ export function setupTestDb(): Database.Database {
 
 export function seedData(): void {
   const insertGame = db.prepare(
-    `INSERT INTO games (name, slug, runner, platform, installed, playtime, service, service_id, lastplayed, configpath)
-     VALUES (:name, :slug, :runner, :platform, :installed, :playtime, :service, :service_id, :lastplayed, :configpath)`
+    `INSERT INTO games (name, slug, runner, platform, installed, playtime, service, service_id, lastplayed, configpath, directory, executable)
+     VALUES (:name, :slug, :runner, :platform, :installed, :playtime, :service, :service_id, :lastplayed, :configpath, :directory, :executable)`
   );
   for (const g of SEED_GAMES) {
     insertGame.run(g);

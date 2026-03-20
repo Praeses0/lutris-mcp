@@ -11,6 +11,8 @@ import {
 } from "../db/queries.js";
 import { readGameConfig } from "../config/reader.js";
 import { generateSlug } from "../util/slug.js";
+import { formatPlaytime } from "../util/format.js";
+import { getGameMediaPaths } from "../util/media.js";
 
 function handleError(error: unknown) {
   const msg = error instanceof Error ? error.message : String(error);
@@ -34,6 +36,7 @@ export function registerGameTools(server: McpServer) {
       installed: z.boolean().optional().describe("Filter by installed status"),
       category: z.string().optional().describe("Filter by category name"),
       search: z.string().optional().describe("Search by name or slug"),
+      smart_search: z.boolean().optional().default(true).describe("Token-based smart search (e.g. 'ff7' finds 'Final Fantasy VII')"),
       service: z.string().optional().describe("Filter by service (e.g. steam)"),
       limit: z.coerce.number().min(1).max(200).default(50).describe("Results per page"),
       offset: z.coerce.number().min(0).default(0).describe("Offset for pagination"),
@@ -51,7 +54,14 @@ export function registerGameTools(server: McpServer) {
             {
               type: "text",
               text: JSON.stringify(
-                { total: result.total, count: result.games.length, games: result.games },
+                {
+                  total: result.total,
+                  count: result.games.length,
+                  games: result.games.map((g) => ({
+                    ...g,
+                    playtime_formatted: formatPlaytime(g.playtime),
+                  })),
+                },
                 null,
                 2
               ),
@@ -95,7 +105,13 @@ export function registerGameTools(server: McpServer) {
           content: [
             {
               type: "text",
-              text: JSON.stringify({ ...game, categories, config }, null, 2),
+              text: JSON.stringify({
+                ...game,
+                playtime_formatted: formatPlaytime(game.playtime),
+                categories,
+                config,
+                media: getGameMediaPaths(game.slug),
+              }, null, 2),
             },
           ],
         };

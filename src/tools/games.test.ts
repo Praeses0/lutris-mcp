@@ -10,6 +10,10 @@ vi.mock("../config/reader.js", () => ({
   readGameConfig: vi.fn(() => null),
 }));
 
+vi.mock("../util/media.js", () => ({
+  getGameMediaPaths: vi.fn(() => ({ coverart: null, banner: null, icon: null })),
+}));
+
 import { registerGameTools } from "./games.js";
 
 function captureTools() {
@@ -40,12 +44,13 @@ describe("game tools", () => {
   // ─── list_games ─────────────────────────────────────────────────────────
 
   describe("list_games", () => {
-    it("returns structured response with total/count/games", async () => {
+    it("returns structured response with total/count/games and playtime_formatted", async () => {
       const result = await tools.get("list_games")!({ limit: 50, offset: 0, sort_by: "name", sort_order: "asc" });
       const data = parseResult(result);
-      expect(data.total).toBe(6);
-      expect(data.count).toBe(6);
-      expect(data.games).toHaveLength(6);
+      expect(data.total).toBe(8);
+      expect(data.count).toBe(8);
+      expect(data.games).toHaveLength(8);
+      expect(data.games[0]).toHaveProperty("playtime_formatted");
       expect(result.content[0].type).toBe("text");
     });
 
@@ -59,19 +64,22 @@ describe("game tools", () => {
         sort_order: "asc",
       });
       const data = parseResult(result);
-      expect(data.total).toBe(2);
+      expect(data.total).toBe(3);
     });
   });
 
   // ─── get_game ───────────────────────────────────────────────────────────
 
   describe("get_game", () => {
-    it("returns game by id with categories", async () => {
+    it("returns game by id with categories, media, and playtime_formatted", async () => {
       const result = await tools.get("get_game")!({ id: 1 });
       const data = parseResult(result);
       expect(data.name).toBe("Half-Life 2");
       expect(data.categories).toHaveLength(2);
       expect(data).toHaveProperty("config");
+      expect(data).toHaveProperty("media");
+      expect(data).toHaveProperty("playtime_formatted");
+      expect(data.playtime_formatted).toBe("2h 1m");
     });
 
     it("returns game by slug", async () => {

@@ -1,14 +1,7 @@
 import { readFileSync, existsSync } from "fs";
-import { homedir } from "os";
 import path from "path";
 import yaml from "js-yaml";
-
-function getConfigDir(): string {
-  return (
-    process.env.LUTRIS_GAMES_CONFIG_DIR ||
-    path.join(homedir(), ".config", "lutris", "games")
-  );
-}
+import { getConfigDir } from "./paths.js";
 
 export function readGameConfig(
   configpath: string | null

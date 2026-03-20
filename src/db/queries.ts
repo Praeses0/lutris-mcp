@@ -15,6 +15,7 @@ export interface ListGamesOptions {
   installed?: boolean;
   category?: string;
   search?: string;
+  smart_search?: boolean;
   service?: string;
   limit: number;
   offset: number;
@@ -54,8 +55,25 @@ export function listGames(opts: ListGamesOptions): { games: Game[]; total: numbe
     params.service = opts.service;
   }
   if (opts.search) {
-    conditions.push("(g.name LIKE :search OR g.slug LIKE :search)");
-    params.search = `%${opts.search}%`;
+    if (opts.smart_search) {
+      // Smart search: split into tokens by whitespace and special chars, match each
+      // e.g., "witcher 3" → ["witcher", "3"], "half-life" → ["half", "life"]
+      const tokens = opts.search
+        .toLowerCase()
+        .split(/[^a-z0-9]+/)
+        .filter(Boolean);
+      if (tokens.length === 0) {
+        conditions.push("1 = 0"); // no valid tokens → no results
+      }
+      tokens.forEach((token, i) => {
+        const key = `search_${i}`;
+        conditions.push(`(LOWER(g.name) LIKE :${key} OR g.slug LIKE :${key})`);
+        params[key] = `%${token}%`;
+      });
+    } else {
+      conditions.push("(g.name LIKE :search OR g.slug LIKE :search)");
+      params.search = `%${opts.search}%`;
+    }
   }
 
   let joins = "";
@@ -281,4 +299,127 @@ export function getLibraryStats(): LibraryStats {
     games_by_service: byService,
     recently_played: recentlyPlayed,
   };
+}
+
+// ─── Additional Queries ─────────────────────────────────────────────────────
+
+export function getServiceGame(
+  service: string,
+  appid: string
+): ServiceGame | undefined {
+  const db = getDatabase();
+  return db
+    .prepare("SELECT * FROM service_games WHERE service = ? AND appid = ?")
+    .get(service, appid) as ServiceGame | undefined;
+}
+
+export function getAllGames(): Game[] {
+  const db = getDatabase();
+  return db.prepare("SELECT * FROM games ORDER BY name").all() as Game[];
+}
+
+export function getAllGameCategories(): GameCategory[] {
+  const db = getDatabase();
+  return db
+    .prepare("SELECT * FROM games_categories")
+    .all() as GameCategory[];
+}
+
+export function bulkAssignCategory(
+  gameIds: number[],
+  categoryId: number
+): number {
+  const db = getDatabase();
+  const stmt = db.prepare(
+    "INSERT OR IGNORE INTO games_categories (game_id, category_id) VALUES (?, ?)"
+  );
+  const txn = db.transaction((ids: number[]) => {
+    let count = 0;
+    for (const id of ids) {
+      const result = stmt.run(id, categoryId);
+      count += result.changes;
+    }
+    return count;
+  });
+  return txn(gameIds);
+}
+
+const BULK_UPDATE_FIELDS = new Set([
+  "runner",
+  "platform",
+  "installed",
+  "year",
+  "service",
+  "sortname",
+]);
+
+export function bulkUpdateGames(
+  gameIds: number[],
+  field: string,
+  value: unknown
+): number {
+  if (!BULK_UPDATE_FIELDS.has(field)) {
+    throw new Error(`Field "${field}" is not allowed for bulk update`);
+  }
+  const db = getDatabase();
+  const stmt = db.prepare(`UPDATE games SET ${field} = ? WHERE id = ?`);
+  const txn = db.transaction((ids: number[]) => {
+    let count = 0;
+    for (const id of ids) {
+      const result = stmt.run(value, id);
+      count += result.changes;
+    }
+    return count;
+  });
+  return txn(gameIds);
+}
+
+export interface DuplicateGroup {
+  reason: string;
+  games: Pick<Game, "id" | "name" | "slug" | "directory" | "runner">[];
+}
+
+export function findDuplicates(): DuplicateGroup[] {
+  const db = getDatabase();
+  const groups: DuplicateGroup[] = [];
+
+  const allGames = db
+    .prepare(
+      "SELECT id, name, slug, directory, runner FROM games ORDER BY slug"
+    )
+    .all() as Pick<Game, "id" | "name" | "slug" | "directory" | "runner">[];
+
+  // Group by same non-empty directory
+  const dirMap = new Map<string, typeof allGames>();
+  for (const g of allGames) {
+    if (!g.directory) continue;
+    if (!dirMap.has(g.directory)) dirMap.set(g.directory, []);
+    dirMap.get(g.directory)!.push(g);
+  }
+  for (const [dir, games] of dirMap) {
+    if (games.length > 1) {
+      groups.push({ reason: `Same directory: ${dir}`, games });
+    }
+  }
+
+  // Find similar slugs (one is substring of another)
+  const seenPairs = new Set<string>();
+  for (let i = 0; i < allGames.length; i++) {
+    for (let j = i + 1; j < allGames.length; j++) {
+      const a = allGames[i];
+      const b = allGames[j];
+      if (!a.slug || !b.slug || a.slug === b.slug) continue;
+      if (a.slug.includes(b.slug) || b.slug.includes(a.slug)) {
+        const key = `${a.id}-${b.id}`;
+        if (seenPairs.has(key)) continue;
+        seenPairs.add(key);
+        groups.push({
+          reason: `Similar slugs: "${a.slug}" / "${b.slug}"`,
+          games: [a, b],
+        });
+      }
+    }
+  }
+
+  return groups;
 }

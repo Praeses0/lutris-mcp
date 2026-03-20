@@ -49,9 +49,9 @@ describe("stats tools", () => {
   it("values match seed data", async () => {
     const result = await tools.get("get_library_stats")!({});
     const data = parseResult(result);
-    expect(data.total_games).toBe(6);
-    expect(data.installed_games).toBe(3);
-    expect(data.total_playtime_hours).toBe(7.43);
+    expect(data.total_games).toBe(8);
+    expect(data.installed_games).toBe(5);
+    expect(data.total_playtime_hours).toBe(8.43);
     expect(data.top_games_by_playtime[0].name).toBe("The Witcher 3");
   });
 });

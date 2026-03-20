@@ -65,4 +65,37 @@ describe("service game tools", () => {
     expect(data.total).toBe(0);
     expect(data.games).toHaveLength(0);
   });
+
+  describe("import_service_game", () => {
+    it("imports a service game into library", async () => {
+      const result = await tools.get("import_service_game")!({
+        service: "steam",
+        appid: "400", // Portal — exists in service_games but not in games
+        runner: "steam",
+        platform: "linux",
+      });
+      const data = parseResult(result);
+      expect(data.message).toContain("Portal");
+      expect(data.game.service).toBe("steam");
+      expect(data.game.service_id).toBe("400");
+    });
+
+    it("errors when service game not found", async () => {
+      const result = await tools.get("import_service_game")!({
+        service: "steam",
+        appid: "99999",
+      });
+      expect(result.isError).toBe(true);
+      expect(result.content[0].text).toContain("No service game found");
+    });
+
+    it("errors on duplicate slug", async () => {
+      const result = await tools.get("import_service_game")!({
+        service: "steam",
+        appid: "220", // Half-Life 2 — slug already exists in games
+      });
+      expect(result.isError).toBe(true);
+      expect(result.content[0].text).toContain("already exists");
+    });
+  });
 });
