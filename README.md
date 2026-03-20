@@ -2,6 +2,21 @@
 
 MCP server for managing your [Lutris](https://lutris.net) game library. Gives AI assistants direct access to browse, search, organize, launch, and install games in your Linux gaming collection.
 
+## Examples
+
+Here are some things you can ask your AI assistant once this server is connected:
+
+- "What games do I have installed?"
+- "Show me my most played games"
+- "Search my Steam library for Hades"
+- "Launch Balatro"
+- "Install this game from `/path/to/setup.exe`"
+- "Add all my roguelike games to a 'Roguelike' category"
+- "Are there any duplicate games in my library?"
+- "Show me the log for my last Hades II session"
+- "Export my installed games as JSON"
+- "Set the cover art for Timberborn from this image"
+
 ## Installation
 
 ### Quick Start (npx)
@@ -128,21 +143,6 @@ npm run build
 | Tool | Description |
 |------|-------------|
 | `bulk_update_games` | Update a field on multiple games at once |
-
-## Examples
-
-Here are some things you can ask your AI assistant once this server is connected:
-
-- "What games do I have installed?"
-- "Show me my most played games"
-- "Search my Steam library for Hades"
-- "Launch Balatro"
-- "Install this game from `/path/to/setup.exe`"
-- "Add all my roguelike games to a 'Roguelike' category"
-- "Are there any duplicate games in my library?"
-- "Show me the log for my last Hades II session"
-- "Export my installed games as JSON"
-- "Set the cover art for Timberborn from this image"
 
 ## Environment Variables
 
